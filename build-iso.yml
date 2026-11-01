@@ -1,0 +1,64 @@
+
+name: Build MacLinux ISO
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/build-iso.yml"
+
+jobs:
+  build-iso:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install ISO tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y live-build debootstrap squashfs-tools xorriso
+
+      - name: Configure live system
+        run: |
+          mkdir maclinux-live
+          cd maclinux-live
+
+          sudo lb config \
+            --mode debian \
+            --distribution noble \
+            --architecture amd64 \
+            --archive-areas "main universe" \
+            --binary-images iso-hybrid \
+            --bootloaders "grub-efi grub-pc" \
+            --debian-installer false \
+            --apt-recommends true
+
+      - name: Add desktop packages
+        run: |
+          cd maclinux-live
+          mkdir -p config/package-lists
+          cat > config/package-lists/maclinux.list.chroot <<'EOF'
+          systemd
+          sudo
+          network-manager
+          xserver-xorg
+          sddm
+          qt6-base-dev
+          qml6-module-qtquick
+          qml6-module-qtquick-controls
+          qml6-module-qtquick-layouts
+          EOF
+
+      - name: Build ISO
+        run: |
+          cd maclinux-live
+          sudo lb build
+
+      - name: Upload ISO
+        uses: actions/upload-artifact@v4
+        with:
+          name: MacLinux-Experimental-ISO
+          path: maclinux-live/*.iso
+          if-no-files-found: error
