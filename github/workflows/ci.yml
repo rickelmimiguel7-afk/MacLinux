@@ -1,0 +1,33 @@
+name: MacLinux CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-shell:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Qt 6 and build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ qt6-base-dev qt6-declarative-dev \
+            qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts
+
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --parallel 2
+
+      - name: Upload prototype
+        uses: actions/upload-artifact@v4
+        with:
+          name: maclinux-shell-linux-x86_64
+          path: build/maclinux-shell
+          if-no-files-found: error
